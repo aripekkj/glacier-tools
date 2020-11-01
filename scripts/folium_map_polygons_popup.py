@@ -4,10 +4,13 @@ Created on Tue May 26 11:15:51 2020
 
 Create a folium map with popup images
 
+Notes: 
+    Use lat, lon coordinates in popup markers.
 
 Updates:
-    Added MarkerCluster class with popups 15.6.2020
     Script can now add lines to map 23.9.2020
+    Added MarkerCluster class with popups 15.6.2020
+    
 
 To Do:
     Set popup marker locations somewhere on LineString instead of line centroids
@@ -27,21 +30,21 @@ import numpy as np
 
 # function to extract row by string
 def getPointByString(DataFrame, String):
-    row = DataFrame.loc[DataFrame['RGIID_OFID'] == String]
+    row = DataFrame.loc[DataFrame['RGIID2'] == String]
     row_point = row.centroid
     return [row, row_point];
   
 # polygon filepath
-fp = r'/Users/apj/Documents/_HY/Greenland/outlines/05_rgi60_nuussuaq_wgs84_studyarea.shp'
+fp = r'/Users/apj/Documents/_HY/Greenland/outlines/edited_glacier_divides/'
 # centerlines filepath
-line_fp = r'/Users/apj/Documents/_HY/Greenland/centerlines/all_3d_centerlines/clipped/cl_rgi_lines_2010s_3d_sjoin_clip_wgs84.shp'
+line_fp = r'/Users/apj/Documents/_HY/Greenland/centerlines/edited_glacier_divides/unique_ids/cl_50s_wgs84_edit_newUniqueIDs.shp'
 
 # read files
 poly = gpd.read_file(fp)
 lines = gpd.read_file(line_fp)
 
 # new column to create unique ID's also for tributary glaciers
-lines['RGIID_OFID'] = lines['RGIID'] + '_' + lines['ORIG_FID'].astype(str)
+#lines['RGIID_OFID'] = lines['RGIID'] + '_' + lines['ORIG_FID'].astype(str)
 
 # create columns for x and y coordinates
 lines['x'] = lines.geometry.centroid.x
@@ -52,7 +55,7 @@ lines['y'] = lines.geometry.centroid.y
 loc = 70.50, -52.50
 
 # set path for glob to browse through files
-img_path = r'/Users/apj/Documents/_HY/Greenland/centerlines/figures/with_tributaries/*.png' # look only files that end with _s.png
+img_path = r'/Users/apj/Documents/_HY/Greenland/centerlines/figures/edited_divides_w_tributaries/*.png' # look only files that end with _s.png
 
 # set categories for choropleth map legend
 #bins = list([0, 25, 50, max(fire['diff20-19'])]) # not working
@@ -92,13 +95,16 @@ folium.features.GeoJson(poly,
 folium.features.GeoJson(lines,
                         name='Lines',
                         style_function=lambda x: {'color':'blue','weight':2},
-                        tooltip=folium.features.GeoJsonTooltip(fields=['RGIID_OFID'],
+                        tooltip=folium.features.GeoJsonTooltip(fields=['RGIID'],
                                                                 aliases = ['Glacier ID'],
                                                                 labels=True,
                                                                 sticky=False
                                                                             )
                        ).add_to(m)
 
+
+
+# This part is to add credit text on the map
 """
 html = '<div style="position: fixed; bottom: 30px; right: 5px; width: 200px; height: 60px; \
     background-color: #FFFFFF00; z-index:9000; line-height: 10px"> \
@@ -138,8 +144,8 @@ for filename in glob.glob(img_path):
 
     # add marker and png image as popup
     html = '<img src="data:image/png;base64,{}">'.format
-    iframe = IFrame(html(encoded.decode('UTF-8')), width=620, height=420)
-    popup = folium.Popup(iframe, max_width= 600)
+    iframe = IFrame(html(encoded.decode('UTF-8')), width=450, height=300)
+    popup = folium.Popup(iframe, max_width= 450)
     popuplist.append(popup)
     icon = folium.Icon(color="red", icon="info-sign")
     iconlist.append(icon)
@@ -152,13 +158,13 @@ for filename in glob.glob(img_path):
 
 # create a list of coordinates from extracted rows
 locations = list(zip(point_coords["y"], point_coords["x"]))
-
+    
 # create marker_cluster class and add it to map
 marker_cluster = MarkerCluster(locations, popups=popuplist, icons=iconlist)
 m.add_child(marker_cluster)
 
 # save map
-m.save("folium_map_glacierlines.html")
+m.save("folium_map_glacierlines_3010.html")
 
 
 
