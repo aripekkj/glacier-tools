@@ -3,7 +3,10 @@
 """
 Created on Thu Oct 22 15:23:56 2020
 
-Create numbering for tributary glaciers
+Create numbering for lines if with an ID more than one lines are found. Numbering e.g. 1.1, 1.2, 1.3
+
+Notes:
+    Runs through but didn't give completely correct result
 
 
 @author: apj
