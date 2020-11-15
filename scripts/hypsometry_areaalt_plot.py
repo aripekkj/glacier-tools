@@ -243,29 +243,31 @@ merged['dA85t16'] = merged['2016Akm2'] - merged['1985Akm2']
 fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10,10))
 
 # hypsometry plot
-line85 = axes[0].plot(merged['mu_dh_53to85'], merged['h_cont'], marker='p', color='k', linewidth= 0.9, label='dh 1953 to 1985')
-line2016 = axes[0].plot(merged['mu_dh_53to2016'], merged['h_cont'], marker='v', color='b', linewidth=0.9, label='dh 1953 to 2016')
-axes[0].set_ylim(min(merged['h_cont'])+100, max(merged['h_cont'])+200)
-axes[0].set_yticks(np.arange(min(merged['h_cont'])+100, max(merged['h_cont'])+200, 100))
+line85 = axes[0].plot(merged['mu_dh_53to85'], merged['elev_bin'], marker='p', color='k', linewidth= 0.9, label='dh 1953 to 1985')
+line2016 = axes[0].plot(merged['mu_dh_53to2016'], merged['elev_bin'], marker='v', color='b', linewidth=0.9, label='dh 1953 to 2016')
+#axes[0].set_ylim(min(merged['h_cont'])+100, max(merged['h_cont'])+200)
+#axes[0].set_yticks(np.arange(min(merged['h_cont'])+100, max(merged['h_cont'])+200, 100))
 axes[0].axvline(0, color='grey', ls='--')
-axes[0].set_ylabel('Elevation (m)')
+axes[0].set_ylabel('Elevation bin (m)')
 axes[0].set_xlabel('Average elevation difference to 1953 (m)')
 axes[0].legend()
 axes[0].grid()
 
 # area-altitude plot
-line5385 = axes[1].plot(merged['dA53t85'], merged['h_cont'], marker='s', color='k', linewidth= 0.9, label='area change 1953 to 1985')
-line532016 = axes[1].plot(merged['dA53t16'], merged['h_cont'], marker='^', color='r', linewidth=0.9, label='area change 1953 to 2016')
-axes[1].set_ylim(min(merged['h_cont'])+100, max(merged['h_cont'])+200)
-axes[1].set_yticks(np.arange(min(merged['h_cont'])+100, max(merged['h_cont'])+200, 100))
-axes[1].axvline(0, color='grey', ls='--')
-axes[1].set_ylabel('Elevation (m)')
-axes[1].set_xlabel('Area difference to 1953 (km^2)')
+area1953 = axes[1].plot(merged['1953Akm2'], merged['elev_bin'], marker='s', color='k', linewidth= 0.9, label='1953')
+area1985 = axes[1].plot(merged['1985Akm2'], merged['elev_bin'], marker='^', color='#994C00', linewidth=0.9, label='1985')
+area2016 = axes[1].plot(merged['2016Akm2'], merged['elev_bin'], marker='o', color='#006633', linewidth=0.9, label='2016')
+#axes[1].set_ylim(min(merged['h_cont'])+100, max(merged['h_cont'])+200)
+#axes[1].set_yticks(np.arange(min(merged['h_cont'])+100, max(merged['h_cont'])+200, 100))
+#axes[1].axvline(0, color='grey', ls='--')
+axes[1].set_ylabel('Elevation bin (m)')
+axes[1].set_xlabel('Area altitude distribution ($km^2$)')
 axes[1].legend()
 axes[1].grid()
 
-
-
+# fig title
+fig.suptitle('All glaciers', fontsize=20)
+plt.tight_layout(pad=1.5)
 
 
 
