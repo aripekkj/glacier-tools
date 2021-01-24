@@ -5,6 +5,8 @@ Created on Mon Jan  4 11:57:37 2021
 
 Hypsometry plots
 
+To Do:
+    select only glaciers where 'RGIId' matches with filtered dissolved outline 'RGIId'
 
 @author: apj
 """
@@ -22,13 +24,13 @@ from shapely.validation import explain_validity
 import os
 
 # filepaths
-fp_tiff = r'/Users/apj/Documents/_HY/Greenland/dem_diff/filled_dem/*.tif'
-fp_outlines = r'/Users/apj/Documents/_HY/Greenland/outlines/edited_glacier_divides/final/*final.shp'
-fp_diss_outline = r'/Users/apj/Documents/_HY/Greenland/outlines/edited_glacier_divides/Dissolved_outline_50s80s2010s_utm_final_edit.shp'
-fp_exclude = r'/Users/apj/Documents/_HY/Greenland/dem_diff/filled_dem/glaciers_to_exclude_edit.csv'
+fp_tiff = r'/Users/apj/Documents/_HY/Greenland/dem_diff/vgridshift/filled_ddem/*global*.tif'
+fp_outlines = r'/Users/apj/Documents/_HY/Greenland/outlines/edited_glacier_divides/final/*final_edit.shp'
+fp_diss_outline = r'/Users/apj/Documents/_HY/Greenland/outlines/edited_glacier_divides/Dissolved_outline_50s80s2010s_utm_exclude_bin_thresh.shp'
+fp_surging_outline = r'/Users/apj/Documents/_HY/Greenland/outlines/edited_glacier_divides/Dissolved_outline_50s80s2010s_all_surging.shp'
+fp_exclude = r'/Users/apj/Documents/_HY/Greenland/dem_diff/filled_ddem/glaciers_to_exclude_edit.csv'
 fp_dem = r'/Users/apj/Documents/_HY/Greenland/DEM_masked/2016_dem_studyarea_3681x3295.tif'
 fp_c = r'/Users/apj/Documents/_HY/Greenland/contour/2016_filled_contour.shp'
-
 
 def checkGeom(geodataframe):
     """
@@ -167,27 +169,31 @@ def excludeByID(excluded_list, in_gdf, id_column):
     return selection
 
 # read files
-gdf = gpd.read_file(fp_diss_outline) # dissolved outlines
+gdf = gpd.read_file(fp_diss_outline) # glacier outlines, the ones passing the filter in void fill
 checkGeom(gdf)
 contour = gpd.read_file(fp_c) # filled contours
-exclude = pd.read_csv(fp_exclude) # glaciers to exclude
+
+#exclude = pd.read_csv(fp_exclude) # glaciers to exclude
 # rename columns
-exclude = exclude.rename(columns={'Unnamed: 0': 'index', '0': 'ID'})
+#exclude = exclude.rename(columns={'Unnamed: 0': 'index', '0': 'ID'})
 #remoce duplicates and drop extra columns
-exclude = exclude.drop_duplicates(subset='ID')
-exclude = exclude.drop(columns=['index'])
+#exclude = exclude.drop_duplicates(subset='ID')
+#exclude = exclude.drop(columns=['index'])
 # to list
-excludelist = exclude['ID'].tolist()
+#excludelist = exclude['ID'].tolist()
 
 # glaciers to select
-sel = ['RGI60-05.02328_1']
-#sel = ['RGI60-05.02281', 'RGI60-05.02280_1', 'RGI60-05.02309', 'RGI60-05.02328_1', 'RGI60-05.01987_1', 'RGI60-05.02303', 'RGI60-05.02126'] # observed surges
-#sel = ['RGI60-05.02281', 'RGI60-05.02280_1', 'RGI60-05.02328_1', 'RGI60-05.02309', 'RGI60-05.02108', 'RGI60-05.02303', 'RGI60-05.01920', 'RGI60-05.01987_1', 'RGI60-05.02213', 'RGI60-05.02126'] # observed and probable surge
+#sel = ['RGI60-05.02328_1']
+sel = ['RGI60-05.02281', 'RGI60-05.02087', 'RGI60-05.02297', 'RGI60-05.02280_1', 'RGI60-05.02309', 'RGI60-05.02328_1', 'RGI60-05.01987_1', 'RGI60-05.02303', 'RGI60-05.02126'] # observed surges
+#sel = ['RGI60-05.02281', 'RGI60-05.02087', 'RGI60-05.02297', 'RGI60-05.02280_1', 'RGI60-05.02309', 'RGI60-05.02328_1', 'RGI60-05.02108', 'RGI60-05.02303', 'RGI60-05.01920', 'RGI60-05.01987_1', 'RGI60-05.02213', 'RGI60-05.02126'] # observed and probable surge
 
 # exclude and select certain glaciers 
-gdf = excludeByID(excludelist, gdf, 'RGIId')
+#gdf = excludeByID(excludelist, gdf, 'RGIId')
+# get id's to list, so same selection can be made for edited outlines
+gdf_idlist = list(gdf['RGIId'])
 #gdf.to_file(fp_diss_outline_exc, driver='ESRI Shapefile')
-gdf = gdf[gdf.RGIId.isin(sel)]
+
+gdf = gdf[gdf.RGIId.isin(sel)] # subset
 #gdf.to_file(fp_surging_outline, driver='ESRI Shapefile')
 
 # read outline dataframes and assign them to dictionary where basename is the key to each dataframe
@@ -196,8 +202,10 @@ for f in glob.glob(fp_outlines):
     # get basename
     bname = os.path.basename(f)
     ol = gpd.read_file(f)
-    ol = excludeByID(excludelist, ol, 'RGIId') # exclude certain glaciers
-    ol = ol[ol.RGIId.isin(sel)] # subset dataframe
+    #ol = excludeByID(excludelist, ol, 'RGIId') # exclude certain glaciers
+    ol = ol[ol.RGIId.isin(gdf_idlist)] # selection based on the id's from the dissolved outlines
+    
+    ol = ol[ol.RGIId.isin(sel)] # additional dataframe subsetting, ie. for surging glaciers only
     # check geometry validity before creating dictionary
     for geom in ol.geometry:
         if explain_validity(geom) != 'Valid Geometry':
@@ -205,6 +213,16 @@ for f in glob.glob(fp_outlines):
             print(explain_validity(geom))
     # add dataframe to dictionary with basename as key
     outlinedict[bname] = ol
+
+# test if non-matching id's found
+#keyslist = list(outlinedict)
+#test = outlinedict.get(keyslist[2])
+#testlist = list(test['RGIId'])
+
+#for i in gdf_idlist:
+#    if i not in testlist:
+#        print(i)
+
 
 # check contour columns and elevation ranges
 contour.columns
@@ -259,14 +277,21 @@ for tif in tifflist:
     
 # update bins column to integer
 result['bins'] = result['bins'].astype(int)
-
+# list for area sum strings
+asumstr = []
 # add area change to new columns
 # loop through dictionary keys and values
 for x, y in outlinedict.items():
     # store the first four characters (the year) from the filename to variable
     year = x[:4]
-    # dataframe to store results
-    #result = pd.DataFrame(data=elev_bins, columns=['elev_bin'])
+    
+    # check total glacierized area
+    g_area = sum(y.area) / 1000000
+    unc_a = g_area * 0.1
+    
+    print('Area in ' + str(year) + ': {:.2f} ± {:.2f} km2'.format(g_area, unc_a))  #str(round(g_area / 1000000, 3)) + ' km2')
+    areasum_str = str(year) + ': {:.2f} ± {:.2f} $km^2$'.format(g_area, unc_a)
+    asumstr.append(areasum_str)
     # add column for results
     result[str(x[:4])+'Akm2'] = ""
     # loop through elevation bins and calculate area altitude difference for each bin
@@ -290,7 +315,7 @@ result['dA85t16'] = result['2016Akm2'] - result['1985Akm2']
 result = result.dropna(axis=0, how='any')
 
 # figure output
-fig_out = r'/Users/apj/Documents/_HY/Greenland/contour/figures/hypsometry_RGI60-0502328_surge_glaciers_filled_local_mean.png'
+fig_out = r'/Users/apj/Documents/_HY/Greenland/contour/figures/vgridshift/hypsometry_active_surging_glaciers_filled_global_mean.png'
 
 # create hypsometry and area altitude plot
 fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10,10))
@@ -318,9 +343,19 @@ axes[1].set_ylabel('Elevation bin (m)')
 axes[1].set_xlabel('Area altitude distribution ($km^2$)')
 axes[1].legend(loc=1)
 axes[1].grid()
+textstr = '\n'.join((
+    'Glacierized area',
+    asumstr[0],
+    asumstr[1],
+    asumstr[2]))
+# matplotlib patch properties
+props = dict(boxstyle='round', facecolor='white', alpha=1)
+# place text box in axes coords
+axes[1].text(0.5, 0.05, textstr, transform=axes[1].transAxes, fontsize=10, 
+             verticalalignment='center', bbox=props)
 
 # fig title
-fig.suptitle('Glacier RGI60-05.02328', fontsize=20)
+fig.suptitle('Active surging glaciers', fontsize=20)
 plt.tight_layout(pad=1.5)
 plt.savefig(fig_out, dpi=600, format='png')
 
