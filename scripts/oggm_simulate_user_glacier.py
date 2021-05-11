@@ -219,7 +219,7 @@ rcp85_result = pd.DataFrame()
 for gdir in gdirs:
     
     # plot modelling results
-    f, ax1 = plt.subplots(1, 1, figsize=(14, 4))
+#    f, ax1 = plt.subplots(1, 1, figsize=(14, 4))
     for rcp in ['rcp26', 'rcp45', 'rcp60', 'rcp85']:
         rid = '_CCSM4_{}'.format(rcp)
         ds = utils.compile_run_output(gdir, input_filesuffix=rid)
@@ -235,31 +235,49 @@ for gdir in gdirs:
         elif rcp == 'rcp85':
             rcp85_result = rcp85_result.append(temp_df)
 
-        ds.isel(rgi_id=0).volume.plot(ax=ax1, label=rcp);
+#        ds.isel(rgi_id=0).volume.plot(ax=ax1, label=rcp);
         #ds.isel(rgi_id=1).volume.plot(ax=ax2, label=rcp);
-    plt.legend();
-    plt.savefig(os.path.join(figfp, gdir.rgi_id + '_GCM_model_result_plot.png'), dpi=150)
+#    plt.legend();
+#    plt.savefig(os.path.join(figfp, gdir.rgi_id + '_GCM_model_result_plot.png'), dpi=150)
     
     # Plot modelling output on map
-    f, (axs) = plt.subplots(4, 3, figsize=(14, 6))
+#    f, (axs) = plt.subplots(4, 3, figsize=(14, 6))
     rn = 0
     for rcp in ['rcp26', 'rcp45', 'rcp60', 'rcp85']:
         rid = '_CCSM4_{}'.format(rcp)
         title_str = rcp[:-1] + '.' + rcp[4:] + ' - ' + '2016'
-        graphics.plot_modeloutput_map(gdir, title=title_str, filesuffix=rid, modelyr=2016, ax=axs[rn,0], vmax=350)
+#        graphics.plot_modeloutput_map(gdir, title=title_str, filesuffix=rid, modelyr=2016, ax=axs[rn,0], vmax=350)
         title_str = rcp[:-1] + '.' + rcp[4:] + ' - ' + '2050'
-        graphics.plot_modeloutput_map(gdir, title=title_str, filesuffix=rid, modelyr=2050, ax=axs[rn,1], vmax=350)
+#        graphics.plot_modeloutput_map(gdir, title=title_str, filesuffix=rid, modelyr=2050, ax=axs[rn,1], vmax=350)
         title_str = rcp[:-1] + '.' + rcp[4:] + ' - ' + '2100'
-        graphics.plot_modeloutput_map(gdir, title=title_str, filesuffix=rid, modelyr=2100, ax=axs[rn,2], vmax=350)
+#        graphics.plot_modeloutput_map(gdir, title=title_str, filesuffix=rid, modelyr=2100, ax=axs[rn,2], vmax=350)
         rn += 1
-    plt.tight_layout()
-    plt.savefig(os.path.join(figfp, gdir.rgi_id + '_GCM_model_output_plot.png'), dpi=300)
+#    plt.tight_layout()
+#    plt.savefig(os.path.join(figfp, gdir.rgi_id + '_GCM_model_output_plot.png'), dpi=300)
 
-# average model results by year
-rcp26_mean = rcp26_result.groupby('time').mean()
-rcp45_mean = rcp45_result.groupby('time').mean()
-rcp60_mean = rcp60_result.groupby('time').mean()
-rcp85_mean = rcp85_result.groupby('time').mean()
+
+# group by year and pass a sum or mean function to columns
+rcp26_mean = rcp26_result.groupby('calendar_year').agg(
+                                                    volume=('volume', 'sum'),
+                                                    area=('area', 'sum'),
+                                                    length=('length', 'mean')
+                                                    )
+rcp45_mean = rcp45_result.groupby('calendar_year').agg(
+                                                    volume=('volume', 'sum'),
+                                                    area=('area', 'sum'),
+                                                    length=('length', 'mean')
+                                                    )
+rcp60_mean = rcp60_result.groupby('calendar_year').agg(
+                                                    volume=('volume', 'sum'),
+                                                    area=('area', 'sum'),
+                                                    length=('length', 'mean')
+                                                    )
+rcp85_mean = rcp85_result.groupby('calendar_year').agg(
+                                                    volume=('volume', 'sum'),
+                                                    area=('area', 'sum'),
+                                                    length=('length', 'mean')
+                                                    )
+
 
 def filt(df, col):
     """
@@ -278,7 +296,7 @@ def filt(df, col):
         DESCRIPTION.
 
     """
-    df[col] = df[col].rolling(5, center=True).mean()
+    df[col] = df[col].rolling(5, center=True, min_periods=1).mean()
     return df
 
 # filter area and length columns, info https://oggm.org/tutorials/notebooks/area_length_filter.html
@@ -291,47 +309,136 @@ rcp60_mean = filt(rcp60_mean, 'length')
 rcp85_mean = filt(rcp85_mean, 'area')
 rcp85_mean = filt(rcp85_mean, 'length')
 
+# merge dataframes for saving
+merged = rcp26_mean.merge(rcp45_mean, how='outer', on='calendar_year', suffixes=(None, '_rcp45'))
+merged = merged.merge(rcp60_mean, how='outer', on='calendar_year', suffixes=(None, '_rcp60'))
+merged = merged.merge(rcp85_mean, how='outer', on='calendar_year', suffixes=(None, '_rcp85'))
 
+# add suffix '_rcp26' to first columns
+merged = merged.rename(columns={'volume': 'volume_rcp26', 'area': 'area_rcp26', 'length': 'length_rcp26'})
+
+
+# save dataframe to file in case of later need
+outname = os.path.join(os.path.dirname(figfp), 'rcp_result_sum.csv')
+merged.to_csv(outname, sep=';')
+
+# read csv file
+rcp_result = pd.read_csv(outname, sep=';')
+
+# convert cubic and square meters to cubic and square kilometers
+for i in rcp_result.columns:
+    if 'volume' in i:
+        rcp_result[i] = rcp_result[i] / 10**9
+    if 'area' in i:
+        rcp_result[i] = rcp_result[i] / 10**6
+        
 # plot
 fig = plt.figure(constrained_layout=True)
 gs = fig.add_gridspec(2,2)
 
 ax1 = fig.add_subplot(gs[0,:])
-ax1.plot(rcp26_mean.calendar_year, rcp26_mean.volume, label='rcp2.6')
-ax1.plot(rcp45_mean.calendar_year, rcp45_mean.volume, label='rcp4.5')
-ax1.plot(rcp60_mean.calendar_year, rcp60_mean.volume, label='rcp6.0')
-ax1.plot(rcp85_mean.calendar_year, rcp85_mean.volume, label='rcp8.5')
-ax1.set_ylabel('volume (m$^3$)')
+ax1.plot(rcp_result.calendar_year, rcp_result.volume_rcp26, label='rcp2.6', color='b')
+ax1.plot(rcp_result.calendar_year, rcp_result.volume_rcp45, label='rcp4.5', color='#006633')
+ax1.plot(rcp_result.calendar_year, rcp_result.volume_rcp60, label='rcp6.0', color='#994C00')
+ax1.plot(rcp_result.calendar_year, rcp_result.volume_rcp85, label='rcp8.5', color='k')
+ax1.set_ylabel('volume (km$^3$)')
 ax1.legend()
 
 ax2 = fig.add_subplot(gs[1,0])
-ax2.plot(rcp26_mean.calendar_year, rcp26_mean.area, label='rcp2.6')
-ax2.plot(rcp45_mean.calendar_year, rcp45_mean.area, label='rcp4.5')
-ax2.plot(rcp60_mean.calendar_year, rcp60_mean.area, label='rcp6.0')
-ax2.plot(rcp85_mean.calendar_year, rcp85_mean.area, label='rcp8.5')
-ax2.set_ylabel('area (m$^2$)')
+ax2.plot(rcp_result.calendar_year, rcp_result.area_rcp26, label='rcp2.6', color='b')
+ax2.plot(rcp_result.calendar_year, rcp_result.area_rcp45, label='rcp4.5', color='#006633')
+ax2.plot(rcp_result.calendar_year, rcp_result.area_rcp60, label='rcp6.0', color='#994C00')
+ax2.plot(rcp_result.calendar_year, rcp_result.area_rcp85, label='rcp8.5', color='k')
+ax2.set_ylabel('area (km$^2$)')
 
 ax3 = fig.add_subplot(gs[1,1])
-ax3.plot(rcp26_mean.calendar_year, rcp26_mean.length, label='rcp2.6')
-ax3.plot(rcp45_mean.calendar_year, rcp45_mean.length, label='rcp4.5')
-ax3.plot(rcp60_mean.calendar_year, rcp60_mean.length, label='rcp6.0')
-ax3.plot(rcp85_mean.calendar_year, rcp85_mean.length, label='rcp8.5')
+ax3.plot(rcp_result.calendar_year, rcp_result.length_rcp26, label='rcp2.6', color='b')
+ax3.plot(rcp_result.calendar_year, rcp_result.length_rcp45, label='rcp4.5', color='#006633')
+ax3.plot(rcp_result.calendar_year, rcp_result.length_rcp60, label='rcp6.0', color='#994C00')
+ax3.plot(rcp_result.calendar_year, rcp_result.length_rcp85, label='rcp8.5', color='k')
 ax3.set_ylabel('length (m)')
 
-fig.suptitle('Average projected changes 2016-2100')
-plt.savefig(os.path.join(os.path.dirname(figfp), 'projected_change_2016_2100.png'), dpi=300)
+fig.suptitle('Projected changes 2016-2100')
+plt.savefig(os.path.join(os.path.dirname(figfp), 'projected_change_km_2016_2100.png'), dpi=300)
 
-# merge dataframes for saving
-merged = rcp26_mean.merge(rcp45_mean, how='outer', on='time', suffixes=(None, '_rcp45'))
-merged = merged.merge(rcp60_mean, how='outer', on='time', suffixes=(None, '_rcp60'))
-merged = merged.merge(rcp85_mean, how='outer', on='time', suffixes=(None, '_rcp85'))
 
-# add suffix '_rcp26' to first columns
-merged = merged.rename(columns={'calendar_year': 'calendar_year_rcp26', 'volume': 'volume_rcp26', 'area': 'area_rcp26', 'length': 'length_rcp26'})
+# print some results
 
-# save dataframe to file in case of later need
-outname = os.path.join(os.path.dirname(figfp), 'rcp_result.csv')
-merged.to_csv(outname, sep=';')
+# set calendar year as index
+rcp_result = rcp_result.set_index('calendar_year')
+
+def printRowRatio(df, col1, col2, year1, year2):
+    """
+    Print percentage difference between selected years in selected columns
+
+    Parameters
+    ----------
+    df : DataFrame
+        DESCRIPTION.
+    col1 : String
+        column where to take start value.
+    col2 : String
+        column where to take end value.
+    year1 : Integer
+        Starting year to select
+    year2 : Integer
+        End year to select
+        
+    Returns
+    -------
+    Prints string of the result
+
+    """
+
+    start_vol = df.loc[[year1], [col1]]
+    start_vol = start_vol[col1].iloc[0]
+    end_vol = df.loc[[year2], [col2]]
+    end_vol = end_vol[col2].iloc[0]
+    
+    percentage = round(100- (end_vol / start_vol * 100), 2)
+    
+    print('Start value: ' + str(round(start_vol, 2)))
+    print('End value: ' + str(round(end_vol, 2)))
+    print('Estimated change: ' + str(percentage) + ' %' ) 
+    
+    return percentage
+
+printRowRatio(rcp_result, 'length_rcp26', 'length_rcp26', 2015, 2100)
+
+#### get change between first and last row in percentage to table
+
+# empty dataframe
+perc_result = pd.DataFrame(columns=['volume', 'area', 'length'], index=['rcp26', 'rcp45', 'rcp60', 'rcp85'])
+
+for rcp in ['rcp26', 'rcp45', 'rcp60', 'rcp85']:
+        
+    for i in rcp_result.columns:
+        # if rcp found in column name, compute percentage and assign to df
+        if rcp in i:
+            # get result type from column name
+            rtype = i[:-6]
+            
+            # subset and compute percentage between first and last row
+            selcol = rcp_result[i]
+            sel_percent = round(100- (selcol.iloc[-1] / selcol.iloc[0] * 100), 2)
+    
+            # assign result to certain row and column
+            perc_result[rtype].loc[rcp] = sel_percent
+        # return to the beginning if rcp not in column name
+        else:
+            continue
+
+# save dataframe to file
+outname2 = os.path.join(figfp, 'rcp_result_diff_percentage.csv')
+perc_result.to_csv(outname2, sep=';')
+
+
+
+
+
+
+
+
 
 
 
